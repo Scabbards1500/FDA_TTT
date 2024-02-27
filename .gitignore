@@ -1,0 +1,9 @@
+*.pyc
+data/
+__pycache__/
+checkpoints_chase_rite/
+*.pth
+*.jpg
+venv/
+.idea/
+wandb/
