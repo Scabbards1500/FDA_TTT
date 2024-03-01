@@ -49,6 +49,11 @@ dir_checkpoint = Path('checkpoints_CHASE2/')
 # dir_mask = Path(r"D:\tempdataset\HRF\mask51222")
 # dir_checkpoint = Path('checkpoints_HRF/')
 
+#tooth
+# dir_img = Path(r"D:\tempdataset\tooth_dataset\Images")
+# dir_mask = Path(r'D:\tempdataset\tooth_dataset\Labels2')
+# dir_checkpoint = Path('checkpoints_teeth/')
+
 
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'

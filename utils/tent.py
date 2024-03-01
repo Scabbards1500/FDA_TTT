@@ -3,34 +3,39 @@ from copy import deepcopy
 import torch
 import torch.nn as nn
 import torch.jit
-
+import torch.nn.functional as F
+from utils.dice_score import dice_loss
+from predict import dice_score
 
 class Tent(nn.Module):
     """Tent adapts a model by entropy minimization during testing.
 
     Once tented, a model adapts itself by updating on every forward.
     """
-    def __init__(self, model, optimizer, steps=1, episodic=False):
+    def __init__(self, model, optimizer, steps=1, episodic=False,groundtruth=None):
         super().__init__()
         self.model = model
         self.optimizer = optimizer
         self.steps = steps
         assert steps > 0, "tent requires >= 1 step(s) to forward and update"
         self.episodic = episodic
+        self.mse = nn.MSELoss()
+
 
         # note: if the model is never reset, like for continual adaptation,
         # then skipping the state copy would save memory
         self.model_state, self.optimizer_state = \
             copy_model_and_optimizer(self.model, self.optimizer)
+        self.groundtruth = groundtruth
 
     def forward(self, x):
         if self.episodic:
             self.reset()
 
         for _ in range(self.steps):
-            outputs = forward_and_adapt(x, self.model, self.optimizer)
+            loss = forward_and_adapt(x,  self.model, self.optimizer,self.groundtruth)
 
-        return outputs
+        return loss
 
     def reset(self):
         if self.model_state is None or self.optimizer_state is None:
@@ -46,19 +51,22 @@ def softmax_entropy(x: torch.Tensor) -> torch.Tensor:
 
 
 @torch.enable_grad()  # ensure grads in possible no grad context for testing
-def forward_and_adapt(x, model, optimizer):
-    """Forward and adapt model on batch of data.
-
-    Measure entropy of the model prediction, take gradients, and update params.
-    """
-    # forward
+def forward_and_adapt(x, model, optimizer,groundtruth):
+    """Forward and adapt model on batch of data for binary classification."""
     outputs = model(x)
-    # adapt
+    # loss = nn.CrossEntropyLoss(outputs, groundtruth)
+    # loss += 1 - dice_score(outputs, groundtruth)
+    # loss.backward()
+
     loss = softmax_entropy(outputs).mean(0)
     loss.backward()
+
     optimizer.step()
     optimizer.zero_grad()
+
     return outputs
+
+
 
 
 def collect_params(model):
@@ -123,3 +131,14 @@ def check_model(model):
                                "check which require grad"
     has_bn = any([isinstance(m, nn.BatchNorm2d) for m in model.modules()])
     assert has_bn, "tent needs normalization for its optimization"
+
+
+@torch.jit.script
+def softmax_entropy(x: torch.Tensor) -> torch.Tensor:
+    """Entropy of softmax distribution from logits."""
+    # return -((x).softmax(1) * (x).log_softmax(1)).sum(1)
+    softmax_x = x.softmax(1)
+    log_softmax_x = x.log_softmax(1)
+    return -(softmax_x * log_softmax_x).sum() / x.size(0)
+
+

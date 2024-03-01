@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import random
 
 import numpy as np
 import torch
@@ -11,15 +12,15 @@ import torch.nn as nn
 
 from utils.data_loading import BasicDataset
 from unet import UNet
+
 from utils.utils import plot_img_and_mask
 from glob import glob
 import torch.optim as optim
 from utils.dice_score import dice_loss
 
 from utils import tent
-from utils import memory
-
-buffer_size = 20
+from utils import memorytent
+from utils import testmodel
 
 def get_args():
     parser = argparse.ArgumentParser(description='Predict masks from input images')
@@ -60,16 +61,35 @@ def main():
     mask_values = state_dict.pop('mask_values', [0, 1])
     model.load_state_dict(state_dict,strict=False)
 
+    if args.method == 'source':
+        model = setup_source(model)
+    if args.method == 'tent':
+        model = setup_tent(model)
+    if args.method == 'memorytent':
+        print("memorytent")
+        model = setup_memorybank(model)
+    if args.method =='test':
+        model = setup_test(model)
+
     logging.info('Model loaded!')
+
+    try:
+        model.reset()
+        print("resetting model")
+    except:
+        print("not resetting model")
+
 
     in_files = get_image_files(in_folder)
     in_mask_files = get_image_files(in_mask_folder) if in_mask_folder else None
 
     for i, filename in enumerate(in_files):
+
         logging.info(f'Predicting image {filename} ...')
         img = Image.open(filename)
         gt_mask = Image.open(in_mask_files[i]) if in_mask_files else None
-        mask = predict_img(net=model,
+
+        mask = predict_img(model=model,
                            full_img=img,
                            mask_img=gt_mask,
                            scale_factor=args.scale,
@@ -116,35 +136,32 @@ def dice_score(pred, target):
 
 
 
-def predict_img(net,
-                full_img,
-                device,
-                scale_factor=1,
-                out_threshold=0.5,
-                mask_img = None):
-    args = get_args()
-    if args.method == 'source':
-        setup_source(net)
-    if args.method == 'tent':
-        setup_tent(net)
+def predict_img(model, full_img, device, scale_factor=1, out_threshold=0.5, mask_img = None):
     img = torch.from_numpy(BasicDataset.preprocess(None, full_img, scale_factor, is_mask=False))
     img = img.unsqueeze(0)
     img = img.to(device=device, dtype=torch.float32)
-    mask_img = torch.tensor(np.array(mask_img), dtype=torch.float32).unsqueeze(0)
-    print("no_grad")
-    output = net(img).cpu()
-    output = F.interpolate(output, (full_img.size[1], full_img.size[0]), mode='bilinear')
-    if net.n_classes > 1:
-        mask = output.argmax(dim=1)
-    else:
-        mask = torch.sigmoid(output) > out_threshold
 
+    groundtruth = torch.from_numpy(BasicDataset.preprocess([0,255], mask_img, scale_factor, is_mask=True))
+    groundtruth = groundtruth.unsqueeze(0)
+    groundtruth = groundtruth.to(device=device, dtype=torch.float32)
+
+
+
+    mask_img = torch.tensor(np.array(mask_img), dtype=torch.float32).unsqueeze(0)
+
+
+
+    model.groundtruth = groundtruth
+    output = model(img).cpu()
+    output = F.interpolate(output, (full_img.size[1], full_img.size[0]), mode='bilinear')
+    # if net.n_classes > 1:
+    #     print(">1")
+    #     mask = output.argmax(dim=1)
+    # else:
+    #     print("<1")
+    #     mask = torch.sigmoid(output) > out_threshold
+    mask = output.argmax(dim=1)
     masks_pred = mask[0].long().float().unsqueeze(0)
-    #查看标签
-    print("masks_pred",np.unique(masks_pred))
-    print("mask_img",np.unique(mask_img))
-    # 自带
-    # diceloss.append(1- dice_loss(masks_pred, mask_img.float(), multiclass=False))
 
     # 自写
     dice_loss_mask_img = dice_score(mask_img, masks_pred)
@@ -170,13 +187,24 @@ def setup_tent(model):
     model = tent.configure_model(model)
     params, param_names = tent.collect_params(model)
     optimizer = setup_optimizer(params)
-    tent_model = tent.Tent(model, optimizer,
-                           steps=5,
+    tent_model = tent.Tent(model,optimizer,
+                           steps=1,
                            episodic=False)
-    # print(f"model for adaptation: %s", model)
-    # print(f"params for adaptation: %s", param_names)
-    # print(f"optimizer for adaptation: %s", optimizer)
     return tent_model
+
+def setup_test(model):
+    print("testmodel")
+    test_model = testmodel.Testmodel(model)
+    return test_model
+
+def setup_memorybank(model):
+    model = memorytent.configure_model(model)
+    params, param_names = memorytent.collect_params(model)
+    optimizer = setup_optimizer(params)
+    mbtt_model = memorytent.Tent(model, optimizer,
+                           steps=1,
+                           episodic=False)
+    return mbtt_model
 
 def setup_optimizer(params, optimizer_method='Adam', lr=0.001, beta=0.9, momentum=0.9, dampening=0, weight_decay=0, nesterov=False):
     """Set up optimizer for tent adaptation.
@@ -189,19 +217,11 @@ def setup_optimizer(params, optimizer_method='Adam', lr=0.001, beta=0.9, momentu
 
     For best results, try tuning the learning rate and batch size.
     """
-    print("tent")
     if optimizer_method == 'Adam':
         return optim.Adam(params,
                     lr=lr,
                     betas=(beta, 0.999),
                     weight_decay=0.0)
-    # elif optimizer_method == 'SGD':
-    #     return optim.SGD(params,
-    #                lr=cfg.OPTIM.LR,
-    #                momentum=cfg.OPTIM.MOMENTUM,
-    #                dampening=cfg.OPTIM.DAMPENING,
-    #                weight_decay=cfg.OPTIM.WD,
-    #                nesterov=cfg.OPTIM.NESTEROV)
     else:
         raise NotImplementedError
 
@@ -223,4 +243,11 @@ def mask_to_image(mask: np.ndarray, mask_values):
 
 
 if __name__ == '__main__':
+    seed = 42  # 你可以选择任何你喜欢的整数作为种子值
+    # 设置PyTorch的随机种子
+    torch.manual_seed(seed)
+    # (可选) 如果你的代码会用到CUDA，你也可以设置CUDA的随机种子
+    torch.cuda.manual_seed(seed)
+    # (可选) 设置NumPy的随机种子
+    np.random.seed(seed)
     main()
