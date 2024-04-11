@@ -2,6 +2,7 @@ import argparse
 import logging
 import os
 import random
+import time
 
 import numpy as np
 import torch
@@ -21,6 +22,12 @@ from utils.dice_score import dice_loss
 from utils import tent
 from utils import memorytent
 from utils import testmodel
+from utils import ourmemorytent
+
+
+
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 def get_args():
     parser = argparse.ArgumentParser(description='Predict masks from input images')
@@ -68,21 +75,22 @@ def main():
     if args.method == 'memorytent':
         print("memorytent")
         model = setup_memorybank(model)
+    if args.method == 'ourmemorytent':
+        print("ourtent")
+        model = setup_ourmemorybank(model)
     if args.method =='test':
         model = setup_test(model)
-
     logging.info('Model loaded!')
 
-    try:
-        model.reset()
-        print("resetting model")
-    except:
-        print("not resetting model")
+
+    # model.reset()
+    # print("resetting model")
 
 
     in_files = get_image_files(in_folder)
     in_mask_files = get_image_files(in_mask_folder) if in_mask_folder else None
 
+    start = time.time()
     for i, filename in enumerate(in_files):
 
         logging.info(f'Predicting image {filename} ...')
@@ -109,6 +117,7 @@ def main():
             plot_img_and_mask(img, mask)
 
     print(f"average dice score: {np.mean(diceloss)}")
+    logging.info(f'Inference done! Time elapsed: {time.time() - start:.2f} seconds')
 
 def get_image_files(folder_path):
     jpg = glob(os.path.join(folder_path, '*.png'))
@@ -205,6 +214,15 @@ def setup_memorybank(model):
                            steps=1,
                            episodic=False)
     return mbtt_model
+
+def setup_ourmemorybank(model):
+    model = ourmemorytent.configure_model(model)
+    params, param_names = ourmemorytent.collect_params(model)
+    optimizer = setup_optimizer(params)
+    our_mbtt_model = ourmemorytent.Tent(model, optimizer,
+                           steps=1,
+                           episodic=False)
+    return our_mbtt_model
 
 def setup_optimizer(params, optimizer_method='Adam', lr=0.001, beta=0.9, momentum=0.9, dampening=0, weight_decay=0, nesterov=False):
     """Set up optimizer for tent adaptation.

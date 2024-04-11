@@ -1,17 +1,17 @@
 from copy import deepcopy
-
 import torch
 import torch.nn as nn
 import torch.jit
 import torch.nn.functional as F
 
-from .Mbpa import ReplayMemory
+from .ourMb import ReplayMemory
 import matplotlib.pyplot as plt
 
 import numpy as np
+from .Fourier_Tans import FDA_get_amp_pha_tensor, FDA_target_to_source,arc_add_amp
+
 
 torch.set_printoptions(precision=5)
-
 buffer_size = 30
 
 
@@ -46,6 +46,7 @@ class Tent(nn.Module):
                                  self.model_state, self.optimizer_state)
 
 
+
 @torch.jit.script
 def softmax_entropy(x: torch.Tensor) -> torch.Tensor:
     """Entropy of softmax distribution from logits."""
@@ -58,64 +59,56 @@ def softmax_entropy(x: torch.Tensor) -> torch.Tensor:
 
 @torch.enable_grad()
 def forward_and_adapt(x, model, optimizer, memory, mse, gt):
-    outputs = model(x)
-    features = model.inc(x)  # 模型的编码器 #这个地方从形状特征改成
+    outputs = model(x)  # 这个是变化前的
+    #
+    amp,pha = FDA_get_amp_pha_tensor(x) #获取x的振幅和相位
+    style = amp
+
     memory_size = memory.get_size()
+    pseudo_past_logits_input = None
+
+    for param_group in optimizer.param_groups:
+        param_group['lr']= 1e-6
 
 
+    diff_loss = 0
 
-    # if memory_size > buffer_size:
-    #     with torch.no_grad():
-    #         retrieved_batches = memory.get_neighbours(features.cpu().numpy(), k=4)  # 4
-    #
-    #
-    #         pseudo_past_logits = retrieved_batches.cuda()
-    #         pseudo_current_logits = outputs
-    #         pseudo_past_labels = nn.functional.softmax(pseudo_past_logits, dim=1)
-    #         pseudo_current_labels = nn.functional.softmax(pseudo_current_logits / 2, dim=1)
-    #         diff_loss = (F.kl_div(pseudo_past_labels.log(), pseudo_current_labels, None, None, 'none') + F.kl_div(
-    #             pseudo_current_labels.log(), pseudo_past_labels, None, None, 'none')) / 2
-    #         diff_loss = torch.sum(diff_loss, dim=1)
-    #         diff_loss = diff_loss.cpu().numpy().tolist()
-    #         sum_loss= sum(sum(sublist) for sublist in diff_loss[0])
-    #         len_loss= len(diff_loss[0])
-    #         diff_loss = sum_loss / len_loss
-    #
-    #         for param_group in optimizer.param_groups:
-    #             param_group['lr'] = diff_loss *  1e-6
-
-    if memory_size > buffer_size:
+    if memory_size > 4:
         with torch.no_grad():
-            retrieved_batches = memory.get_neighbours(features.cpu().numpy(), k=4)  # 4
+            retrieved_batches = memory.get_neighbours(style.cpu().numpy(), k=4)  # 找最接近的几个风格
+            pseudo_past_style = retrieved_batches.cuda() # 找的近似的(1,3,256,256)
+            pseudo_past_logits_input = arc_add_amp(pseudo_past_style, style,pha,L=0.8) #更改过去风格后的本次图片
+            # 计算pseudo_past_style和style之间的KL散度
+            diff_loss = F.kl_div(pseudo_past_style.log(), style, reduction='none')
 
-
-            pseudo_past_logits = retrieved_batches.cuda()
-            pseudo_current_logits = outputs
-            pseudo_past_labels = nn.functional.softmax(pseudo_past_logits, dim=1)
-            pseudo_current_labels = nn.functional.softmax(pseudo_current_logits / 2, dim=1)
-            diff_loss = (F.kl_div(pseudo_past_labels.log(), pseudo_current_labels, None, None, 'none') + F.kl_div(
-                pseudo_current_labels.log(), pseudo_past_labels, None, None, 'none')) / 2
-            diff_loss = torch.sum(diff_loss, dim=1)
+            # 将KL散度作为损失添加到总损失中
+            diff_loss = torch.sum(diff_loss, dim=1) # 获取的loss
             diff_loss = diff_loss.cpu().numpy().tolist()
             sum_loss= sum(sum(sublist) for sublist in diff_loss[0])
             len_loss= len(diff_loss[0])
-            diff_loss = sum_loss / len_loss
+            diff_loss = (sum_loss / len_loss) * 1e-2
 
-            for param_group in optimizer.param_groups:
-                param_group['lr'] = diff_loss *  1e-6
+
+
+    if pseudo_past_logits_input!= None:
+        outputs = model(pseudo_past_logits_input)
+    else:
+        outputs = model(x)
 
     loss = softmax_entropy(outputs).mean(0)
+    loss += abs(diff_loss)
     loss.backward()
     optimizer.step()
     optimizer.zero_grad()
-    outputs = model(x)
 
     with torch.no_grad():
-        pseudo_logits = model(x)
-        keys = model.inc(x)
-        memory.push(keys.cpu().numpy(), pseudo_logits.cpu().numpy())
+        amp,pha = FDA_get_amp_pha_tensor(x)
+        memory.push(amp.cpu().numpy(), amp.cpu().numpy())
 
+
+    #这里output要换成tensor
     return outputs
+
 
 
 def collect_params(model):

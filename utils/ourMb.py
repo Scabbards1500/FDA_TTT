@@ -25,7 +25,7 @@ class ReplayMemory(object):
     def push(self, keys, logits):
 
         # dimension = 1024 * 3 * 3 #为什么是1024 * 3 * 3？
-        dimension = 4194304
+        dimension = 196608
         avg = []
 
         for i, key in enumerate(keys):
@@ -52,7 +52,7 @@ class ReplayMemory(object):
         """
         samples = []
 
-        dimension = 4194304
+        dimension = 196608
         keys = keys.reshape(len(keys), dimension)
         total_keys = len(self.memory.keys())
         self.all_keys = np.frombuffer(

@@ -19,6 +19,22 @@ from unet import UNet
 from utils.data_loading import BasicDataset, CarvanaDataset
 from utils.dice_score import dice_loss
 
+
+# #CHASE
+# dir_img = Path(r'D:\tempdataset\TTADataset\CHASE\train\images512')
+# dir_mask = Path(r'D:\tempdataset\TTADataset\CHASE\train\masks5122')
+# dir_checkpoint = Path('checkpoints_CHASE/')
+
+#RITE
+# dir_img = Path(r'D:\tempdataset\TTADataset\RITE\train\images5122')
+# dir_mask = Path(r'D:\tempdataset\TTADataset\RITE\train\masks5122')
+# dir_checkpoint = Path('checkpoints_RITE/')
+
+#HRF
+dir_img = Path(r'D:\tempdataset\TTADataset\HRF\train\images512')
+dir_mask = Path(r'D:\tempdataset\TTADataset\HRF\train\masks51222')
+dir_checkpoint = Path('checkpoints_HRF/')
+
 # # CHASE_RITE
 # dir_img = Path(r'D:\tempdataset\TTADataset\CHASE_RITE\images')
 # dir_mask = Path(r'D:\tempdataset\TTADataset\CHASE_RITE\masks')
@@ -34,25 +50,17 @@ from utils.dice_score import dice_loss
 # dir_mask = Path(r"D:\tempdataset\TTADataset\RITE_HRF\masks")
 # dir_checkpoint = Path('checkpoints_RITE_HRF/')
 
-#test
-dir_img = Path(r"D:\tempdataset\CHASEDB1\images512")
-dir_mask = Path(r'D:\tempdataset\CHASEDB1\masks51222')
-dir_checkpoint = Path('checkpoints_CHASE2/')
 
-# RITE为啥后面会突然1.0? 确实无论数据量大小如何都会出现这个问题呢
-# dir_img = Path(r"D:\tempdataset\RITE\imagesjpg512")
-# dir_mask = Path(r"D:\tempdataset\RITE\masks5122")
-# dir_checkpoint = Path('checkpoints_RITE/')
 
-# HRF,原有的图也太大了根本塞不进去，一般的文件又太小了
-# dir_img = Path(r"D:\tempdataset\HRF\images512")
-# dir_mask = Path(r"D:\tempdataset\HRF\mask51222")
-# dir_checkpoint = Path('checkpoints_HRF/')
+# # teeth_unaug
+# dir_img = Path(r"D:\tempdataset\tooth_unaug\train\image")
+# dir_mask = Path(r'D:\tempdataset\tooth_unaug\train\mask2')
+# dir_checkpoint = Path('checkpoints_teeth_unaug/')
 
-#tooth
-# dir_img = Path(r"D:\tempdataset\tooth_dataset\Images")
-# dir_mask = Path(r'D:\tempdataset\tooth_dataset\Labels2')
-# dir_checkpoint = Path('checkpoints_teeth/')
+# # # teeth_aug
+# dir_img = Path(r"D:\tempdataset\tooth_aug\train\image")
+# dir_mask = Path(r'D:\tempdataset\tooth_aug\train\mask2')
+# dir_checkpoint = Path('checkpoints_teeth_aug/')
 
 
 
@@ -203,7 +211,7 @@ def train_model(
 
 def get_args():
     parser = argparse.ArgumentParser(description='Train the UNet on images and target masks')
-    parser.add_argument('--epochs', '-e', metavar='E', type=int, default=40, help='Number of epochs')
+    parser.add_argument('--epochs', '-e', metavar='E', type=int, default=10, help='Number of epochs')
     parser.add_argument('--batch-size', '-b', dest='batch_size', metavar='B', type=int, default=1, help='Batch size')
     parser.add_argument('--learning-rate', '-l', metavar='LR', type=float, default=1e-5,
                         help='Learning rate', dest='lr')

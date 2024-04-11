@@ -44,21 +44,13 @@ class Tent(nn.Module):
                                  self.model_state, self.optimizer_state)
 
 
-@torch.jit.script
-def softmax_entropy(x: torch.Tensor) -> torch.Tensor:
-    """Entropy of softmax distribution from logits."""
-    return -(x.softmax(1) * x.log_softmax(1)).sum(1)
-
-
 @torch.enable_grad()  # ensure grads in possible no grad context for testing
 def forward_and_adapt(x, model, optimizer,groundtruth):
     """Forward and adapt model on batch of data for binary classification."""
     outputs = model(x)
-    # loss = nn.CrossEntropyLoss(outputs, groundtruth)
-    # loss += 1 - dice_score(outputs, groundtruth)
-    # loss.backward()
 
-    loss = softmax_entropy(outputs).mean(0)
+
+    loss = softmax_entropy(outputs).mean(0) #这个算的是熵
     loss.backward()
 
     optimizer.step()
@@ -133,12 +125,12 @@ def check_model(model):
     assert has_bn, "tent needs normalization for its optimization"
 
 
-@torch.jit.script
 def softmax_entropy(x: torch.Tensor) -> torch.Tensor:
     """Entropy of softmax distribution from logits."""
-    # return -((x).softmax(1) * (x).log_softmax(1)).sum(1)
-    softmax_x = x.softmax(1)
-    log_softmax_x = x.log_softmax(1)
-    return -(softmax_x * log_softmax_x).sum() / x.size(0)
+    x_reshaped = x.view(-1, x.shape[2], x.shape[3])
+    softmax_x = x_reshaped.softmax(0)
+    log_softmax_x = x_reshaped.log_softmax(0)
+    entropy = -(softmax_x * log_softmax_x).sum()/(x.shape[2]*x.shape[3])
+    return entropy
 
 
