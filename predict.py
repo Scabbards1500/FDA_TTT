@@ -21,7 +21,6 @@ from utils.dice_score import dice_loss
 
 from utils import tent
 from utils import memorytent
-from utils import testmodel
 from utils import ourmemorytent
 
 
@@ -95,7 +94,11 @@ def main():
 
         logging.info(f'Predicting image {filename} ...')
         img = Image.open(filename)
-        gt_mask = Image.open(in_mask_files[i]) if in_mask_files else None
+        base_name = os.path.basename(filename)
+        print(base_name)
+        # 拼接基本名称到in_mask_folder路径中，打开同名文件
+        mask_file = os.path.join(in_mask_folder, base_name)
+        gt_mask = Image.open(mask_file) if in_mask_files else None
 
         mask = predict_img(model=model,
                            full_img=img,
@@ -135,8 +138,8 @@ def dice_score(pred, target):
     smooth = 0.5
     num = pred.size(0)
     # 将灰度标签转换为二值标签
-    pred = (pred > 0.5).float()
-    target = (target > 0.5).float()
+    pred = (pred > 0.1).float()
+    target = (target > 0.1).float()
     m1 = pred.view(num, -1)  # Flatten
     m2 = target.view(num, -1)  # Flatten
     intersection = (m1 * m2).sum()
@@ -174,6 +177,7 @@ def predict_img(model, full_img, device, scale_factor=1, out_threshold=0.5, mask
 
     # 自写
     dice_loss_mask_img = dice_score(mask_img, masks_pred)
+    print(dice_loss_mask_img)
     diceloss.append(dice_loss_mask_img)
 
 
@@ -201,10 +205,6 @@ def setup_tent(model):
                            episodic=False)
     return tent_model
 
-def setup_test(model):
-    print("testmodel")
-    test_model = testmodel.Testmodel(model)
-    return test_model
 
 def setup_memorybank(model):
     model = memorytent.configure_model(model)

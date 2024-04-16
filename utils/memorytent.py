@@ -10,9 +10,9 @@ import matplotlib.pyplot as plt
 
 import numpy as np
 
-torch.set_printoptions(precision=5)
+torch.set_printoptions(precision=30)
 
-buffer_size = 30
+buffer_size = 10
 
 
 class Tent(nn.Module):
@@ -62,33 +62,9 @@ def forward_and_adapt(x, model, optimizer, memory, mse, gt):
     features = model.inc(x)  # 模型的编码器 #这个地方从形状特征改成
     memory_size = memory.get_size()
 
-
-
-    # if memory_size > buffer_size:
-    #     with torch.no_grad():
-    #         retrieved_batches = memory.get_neighbours(features.cpu().numpy(), k=4)  # 4
-    #
-    #
-    #         pseudo_past_logits = retrieved_batches.cuda()
-    #         pseudo_current_logits = outputs
-    #         pseudo_past_labels = nn.functional.softmax(pseudo_past_logits, dim=1)
-    #         pseudo_current_labels = nn.functional.softmax(pseudo_current_logits / 2, dim=1)
-    #         diff_loss = (F.kl_div(pseudo_past_labels.log(), pseudo_current_labels, None, None, 'none') + F.kl_div(
-    #             pseudo_current_labels.log(), pseudo_past_labels, None, None, 'none')) / 2
-    #         diff_loss = torch.sum(diff_loss, dim=1)
-    #         diff_loss = diff_loss.cpu().numpy().tolist()
-    #         sum_loss= sum(sum(sublist) for sublist in diff_loss[0])
-    #         len_loss= len(diff_loss[0])
-    #         diff_loss = sum_loss / len_loss
-    #
-    #         for param_group in optimizer.param_groups:
-    #             param_group['lr'] = diff_loss *  1e-6
-
     if memory_size > buffer_size:
         with torch.no_grad():
             retrieved_batches = memory.get_neighbours(features.cpu().numpy(), k=4)  # 4
-
-
             pseudo_past_logits = retrieved_batches.cuda()
             pseudo_current_logits = outputs
             pseudo_past_labels = nn.functional.softmax(pseudo_past_logits, dim=1)
@@ -98,11 +74,11 @@ def forward_and_adapt(x, model, optimizer, memory, mse, gt):
             diff_loss = torch.sum(diff_loss, dim=1)
             diff_loss = diff_loss.cpu().numpy().tolist()
             sum_loss= sum(sum(sublist) for sublist in diff_loss[0])
-            len_loss= len(diff_loss[0])
+            len_loss = len(diff_loss[0]) * len(diff_loss[0]) * 3
             diff_loss = sum_loss / len_loss
 
             for param_group in optimizer.param_groups:
-                param_group['lr'] = diff_loss *  1e-6
+                param_group['lr'] = diff_loss * 1e-3
 
     loss = softmax_entropy(outputs).mean(0)
     loss.backward()

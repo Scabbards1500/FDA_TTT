@@ -33,15 +33,13 @@ im_trg = transform(im_trg)
 # fft_src =torch.fft.fftn(im_src, dim=(-2, -1))
 # fft_trg =torch.fft.fftn(im_trg, dim=(-2, -1))
 
-im_src = im_src.unsqueeze(0)
-im_trg = im_trg.unsqueeze(0)
 
-src_m, src_p = FDA_get_amp_pha_tensor(im_src) # 1, 3,512,512
-trg_m, trg_p = FDA_get_amp_pha_tensor(im_trg) # 1, 3,512,512
+src_m, src_p = FDA_get_amp_pha_tensor(im_src) #  3,512,512
+trg_m, trg_p = FDA_get_amp_pha_tensor(im_trg) #  3,512,512
 
 
-src_in_trg = arc_add_amp(src_m, trg_m,  src_p,0.01)
-# src_in_trg = FDA_target_to_source( im_src, im_trg, L=0.01 )
+src_in_trg = arc_add_amp( src_m,trg_m, src_p,0.01)
+# src_in_trg = FDA_target_to_source(im_src, im_trg, L=0.01)
 
 
 
@@ -49,7 +47,7 @@ src_in_trg = arc_add_amp(src_m, trg_m,  src_p,0.01)
 # 定义转换
 transform = transforms.ToPILImage()
 # 将张量转换为图像
-image2 = transform(src_in_trg.squeeze(0))
+image2 = transform(src_in_trg)
 # 显示图像
 plt.imshow(image2)
 plt.axis('off')  # 不显示坐标轴

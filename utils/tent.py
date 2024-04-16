@@ -49,7 +49,6 @@ def forward_and_adapt(x, model, optimizer,groundtruth):
     """Forward and adapt model on batch of data for binary classification."""
     outputs = model(x)
 
-
     loss = softmax_entropy(outputs).mean(0) #这个算的是熵
     loss.backward()
 

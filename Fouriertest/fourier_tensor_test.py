@@ -16,8 +16,8 @@ import cv2
 # 读取图像
 # 图像转tensor！
 # 读取图像
-image1 = Image.open(r"D:\tempdataset\TTADataset\CHASE\test\images512\Image_01L.jpg")  # 替换为你的图像文件路径
-image2 = Image.open(r"D:\tempdataset\HRF\images512\01dr.JPG")
+image1 = Image.open(r"D:\tempdataset\TTADataset\CHASE\test\images\Image_01L.png")  # 替换为你的图像文件路径
+image2 = Image.open(r"D:\tempdataset\TTADataset\RITE\test\images\05_test.png")
 # 定义转换
 transform = transforms.ToTensor()
 # 将图像转换为张量

@@ -6,6 +6,7 @@ import torchvision.transforms as transforms
 
 
 
+
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
@@ -16,8 +17,8 @@ import cv2
 # 读取图像
 # 图像转tensor！
 # 读取图像
-image1 = Image.open(r"D:\tempdataset\TTADataset\CHASE\test\images512\Image_01L.jpg")  # 替换为你的图像文件路径
-image2 = Image.open(r"D:\tempdataset\HRF\images512\01dr.JPG")
+image1 = Image.open(r"D:\tempdataset\TTADataset\CHASE\test\images\Image_01L.png")  # 替换为你的图像文件路径
+image2 = Image.open(r"D:\tempdataset\TTADataset\RITE\test\images\05_test.png")
 # 定义转换
 transform = transforms.ToTensor()
 # 将图像转换为张量
@@ -51,12 +52,19 @@ constant = torch.mean(fre_p1)
 fre_ = fre_m1 * torch.exp(1j * constant)
 img_onlymagnitude = torch.abs(torch.fft.ifftn(fre_, dim=(-2, -1)))
 
+# 把相位和振幅和一起
+# 把相位和振幅合并
+combined_fre = fre_m1 * torch.exp(1j * fre_p1)  # 使用第一个图像的振幅和第二个图像的相位
+# 进行逆傅立叶变换获取时域图像
+img_combined = torch.abs(torch.fft.ifftn(combined_fre, dim=(-2, -1)))
+
+
 
 # tensor转图像！
 # 定义转换
 transform = transforms.ToPILImage()
 # 将张量转换为图像
-image2 = transform(img_onlymagnitude)
+image2 = transform(img_combined )
 # 显示图像
 plt.imshow(image2)
 plt.axis('off')  # 不显示坐标轴

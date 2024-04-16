@@ -8,29 +8,57 @@ def extract_ampl_phase(fft_im):
     fft_pha = torch.atan2( fft_im[:,:,:,:,1], fft_im[:,:,:,:,0] )
     return fft_amp, fft_pha
 
+# def low_freq_mutate( amp_src, amp_trg, L=0.1 ):
+#     _, _, h, w = amp_src.size()
+#     b = ( np.floor(np.amin((h,w))*L) ).astype(int)     # get b 中间那一块的
+#     amp_src[:,:,0:b,0:b]     = amp_trg[:,:,0:b,0:b]      # top left
+#     amp_src[:,:,0:b,w-b:w]   = amp_trg[:,:,0:b,w-b:w]    # top right
+#     amp_src[:,:,h-b:h,0:b]   = amp_trg[:,:,h-b:h,0:b]    # bottom left
+#     amp_src[:,:,h-b:h,w-b:w] = amp_trg[:,:,h-b:h,w-b:w]  # bottom right
+#     return amp_src
+
 def low_freq_mutate( amp_src, amp_trg, L=0.1 ):
+    amp_src = torch.fft.fftshift ( amp_src, dim=(-2, -1))
+    amp_trg = torch.fft.fftshift(amp_trg, dim=(-2, -1))
     _, _, h, w = amp_src.size()
-    b = ( np.floor(np.amin((h,w))*L)  ).astype(int)     # get b 中间那一块的
-    amp_src[:,:,0:b,0:b]     = amp_trg[:,:,0:b,0:b]      # top left
-    amp_src[:,:,0:b,w-b:w]   = amp_trg[:,:,0:b,w-b:w]    # top right
-    amp_src[:,:,h-b:h,0:b]   = amp_trg[:,:,h-b:h,0:b]    # bottom left
-    amp_src[:,:,h-b:h,w-b:w] = amp_trg[:,:,h-b:h,w-b:w]  # bottom right
+    b = ( np.floor(np.amin((h,w))*L) ).astype(int)     # get b 中间那一块的
+    c_h = np.floor(h/2.0).astype(int)
+    c_w = np.floor(w/2.0).astype(int)
+    h1 = c_h-b
+    h2 = c_h+b+1
+    w1 = c_w-b
+    w2 = c_w+b+1
+    amp_src[:, :,h1:h2,w1:w2] = amp_trg[:, :,h1:h2,w1:w2]
+    amp_src = torch.fft.ifftshift(amp_src, dim=(-2, -1))
+    return amp_src
+
+
+def low_freq_mutate2( amp_src, amp_trg, L=0.1 ):
+    amp_src = torch.fft.fftshift ( amp_src, dim=(-2, -1))
+    amp_trg = torch.fft.fftshift(amp_trg, dim=(-2, -1))
+    _, h, w = amp_src.size()
+    b = ( np.floor(np.amin((h,w))*L) ).astype(int)     # get b 中间那一块的
+    c_h = np.floor(h/2.0).astype(int)
+    c_w = np.floor(w/2.0).astype(int)
+    h1 = c_h-b
+    h2 = c_h+b+1
+    w1 = c_w-b
+    w2 = c_w+b+1
+    amp_src[:,h1:h2,w1:w2] = amp_trg[:,h1:h2,w1:w2]
+    amp_src = torch.fft.ifftshift(amp_src, dim=(-2, -1))
     return amp_src
 
 def low_freq_mutate_np( amp_src, amp_trg, L=0.1 ):
     a_src = np.fft.fftshift( amp_src, axes=(-2, -1) )
     a_trg = np.fft.fftshift( amp_trg, axes=(-2, -1) )
-
     _, h, w = a_src.shape
     b = (  np.floor(np.amin((h,w))*L)  ).astype(int)
     c_h = np.floor(h/2.0).astype(int)
     c_w = np.floor(w/2.0).astype(int)
-
     h1 = c_h-b
     h2 = c_h+b+1
     w1 = c_w-b
     w2 = c_w+b+1
-
     a_src[:,h1:h2,w1:w2] = a_trg[:,h1:h2,w1:w2]
     a_src = np.fft.ifftshift( a_src, axes=(-2, -1) )
     return a_src
@@ -48,7 +76,7 @@ def FDA_target_to_source(src_img, trg_img, L=0.01):
     amp_trg, pha_trg = FDA_get_amp_pha_tensor(fft_trg.clone())
 
     # replace the low frequency amplitude part of source with that from target
-    amp_src_ = low_freq_mutate( amp_src.clone(), amp_trg.clone(), L=L )
+    amp_src_ = low_freq_mutate2( amp_src.clone(), amp_trg.clone(), L=L )
 
     # # recompose fft of source
     # fft_src_ = torch.zeros( fft_src.size(), dtype=torch.float )  #3，512，512
@@ -115,19 +143,11 @@ def FDA_get_amp_pha_tensor(img):
 
 
 def arc_add_amp(amp_src,amp_trg,pha_src,L):
-    amp_src_ = low_freq_mutate( amp_src.clone(), amp_trg.clone(), L=L )
+    # amp_src_ = low_freq_mutate( amp_src.clone(), amp_trg.clone(), L=L )
+    amp_src_ = low_freq_mutate(amp_src.clone(), amp_trg.clone(), L=L)
 
-    # # recompose fft of source
-    # fft_src_ = torch.zeros( fft_src.size(), dtype=torch.float )  #3，512，512
-    # fft_src_[:,:,0] = torch.cos(pha_src.clone()) * amp_src_.clone()
-    # fft_src_[:,:,1] = torch.sin(pha_src.clone()) * amp_src_.clone()
-
-    constant = amp_src_
-    fre_ = constant * torch.exp(1j * pha_src)  # 把幅度谱和相位谱再合并为复数形式的频域图数据
+    fre_ = amp_src_ * torch.exp(1j * pha_src)  # 把幅度谱和相位谱再合并为复数形式的频域图数据
     src_in_trg = torch.abs(torch.fft.ifftn(fre_, dim=(-2, -1)))  # 还原为空间域图像
 
-    # # get the recomposed image: source content, target style
-    # _, imgH, imgW = src_img.size()
-    # src_in_trg = torch.fft.irfft( fft_src_, signal_ndim=2, onesided=False, signal_sizes=[imgH,imgW] )
 
     return src_in_trg
