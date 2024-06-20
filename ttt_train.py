@@ -14,21 +14,27 @@ from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 
 import wandb
-from evaluate import evaluate
+from evaluate import evaluate_ssh
 from unet import UNet
 from utils.data_loading import BasicDataset, CarvanaDataset
 from utils.dice_score import dice_loss
 
+from utils.prepare_dataset_ttt import *
+from utils.misc_ttt import *
+from utils.test_helpers_ttt import *
+from utils.rotation_ttt import *
+
+
 
 # #CHASE
-# dir_img = Path(r'D:\tempdataset\TTADataset\CHASE\train\images')
-# dir_mask = Path(r'D:\tempdataset\TTADataset\CHASE\train\masks')
-# dir_checkpoint = Path('checkpoints_CHASE_test2/')
+dir_img = Path(r'D:\tempdataset\TTADataset\CHASE\train\images512')
+dir_mask = Path(r'D:\tempdataset\TTADataset\CHASE\train\masks')
+dir_checkpoint = Path('checkpoints_CHASE_ttt/')
 
-#RITE
-dir_img = Path(r'D:\tempdataset\TTADataset\RITE\train\images5122')
-dir_mask = Path(r'D:\tempdataset\TTADataset\RITE\train\masks5122')
-dir_checkpoint = Path('checkpoints_RITE/')
+##########RITE
+# dir_img = Path(r'D:\tempdataset\TTADataset\RITE\train\images5122')
+# dir_mask = Path(r'D:\tempdataset\TTADataset\RITE\train\masks5122')
+# dir_checkpoint = Path('checkpoints_RITE_ttt2/')
 
 #HRF
 # dir_img = Path(r'D:\tempdataset\TTADataset\HRF\train\images512')
@@ -39,7 +45,7 @@ dir_checkpoint = Path('checkpoints_RITE/')
 # # # Retina
 # dir_img = Path(r"D:\tempdataset\TTADataset\Retina\train\images")
 # dir_mask = Path(r"D:\tempdataset\TTADataset\Retina\train\masks")
-# dir_checkpoint = Path('checkpoints_Retina/')
+# dir_checkpoint = Path('checkpoints_test/')
 
 #retina_Hrf
 # dir_img = Path(r"D:\tempdataset\tooth_aug\train\images")
@@ -73,12 +79,22 @@ dir_checkpoint = Path('checkpoints_RITE/')
 # dir_checkpoint = Path('checkpoints_teeth_aug/')
 
 
-
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
+from utils.test_helpers_ttt import *
+from utils.rotation_ttt import *
+
+import os
+from pathlib import Path
+from utils.misc_ttt import *
+import multiprocessing
+import torch.optim as optim
+from utils.prepare_dataset_ttt import *
+
 def train_model(
         model,
+        model2,
         device,
         epochs: int = 5,
         batch_size: int = 1,
@@ -102,10 +118,12 @@ def train_model(
     n_train = len(dataset) - n_val
     train_set, val_set = random_split(dataset, [n_train, n_val], generator=torch.Generator().manual_seed(0))
 
+
     # 3. Create data loaders
     loader_args = dict(batch_size=batch_size, num_workers=2, pin_memory=True)
     train_loader = DataLoader(train_set, shuffle=True, **loader_args)
     val_loader = DataLoader(val_set, shuffle=False, drop_last=True, **loader_args)
+
 
     # (Initialize logging)
     experiment = wandb.init(project='U-Net', resume='allow', anonymous='must')
@@ -113,6 +131,7 @@ def train_model(
         dict(epochs=epochs, batch_size=batch_size, learning_rate=learning_rate,
              val_percent=val_percent, save_checkpoint=save_checkpoint, img_scale=img_scale, amp=amp)
     )
+
 
     logging.info(f'''Starting training:
         Epochs:          {epochs}
@@ -137,6 +156,7 @@ def train_model(
     # 5. Begin training
     for epoch in range(1, epochs + 1):
         model.train()
+        ssh.train()
         epoch_loss = 0
         with tqdm(total=n_train, desc=f'Epoch {epoch}/{epochs}', unit='img') as pbar:
             for batch in train_loader:
@@ -156,6 +176,7 @@ def train_model(
                         loss = criterion(masks_pred.squeeze(1), true_masks.float())
                         loss += dice_loss(F.sigmoid(masks_pred.squeeze(1)), true_masks.float(), multiclass=False)
                     else:
+                        print("here2")
                         loss = criterion(masks_pred, true_masks)
                         diceloss = dice_loss(
                             F.softmax(masks_pred, dim=1).float(),
@@ -163,6 +184,14 @@ def train_model(
                             multiclass=True
                         )
                         loss += diceloss
+
+                    #这边是训练ssh的了
+                    inputs_ssh, labels_ssh = rotate_batch(images, args.rotation_type)
+                    inputs_ssh, labels_ssh = inputs_ssh.to(device), labels_ssh.to(device)
+                    outputs_ssh = ssh(inputs_ssh)
+                    loss_ssh = criterion(outputs_ssh, labels_ssh)
+                    loss += loss_ssh
+
 
                 optimizer.zero_grad(set_to_none=True)
                 grad_scaler.scale(loss).backward()
@@ -192,7 +221,7 @@ def train_model(
                             if not (torch.isinf(value.grad) | torch.isnan(value.grad)).any():
                                 histograms['Gradients/' + tag] = wandb.Histogram(value.grad.data.cpu())
 
-                        val_score = evaluate(model, val_loader, device, amp)
+                        val_score = evaluate_ssh(model,ssh, val_loader, device, amp)
                         scheduler.step(val_score)
 
                         logging.info('Validation Dice score: {}'.format(val_score))
@@ -214,15 +243,17 @@ def train_model(
 
         if save_checkpoint:
             Path(dir_checkpoint).mkdir(parents=True, exist_ok=True)
-            state_dict = model.state_dict()
-            state_dict['mask_values'] = dataset.mask_values
-            torch.save(state_dict, str(dir_checkpoint / 'checkpoint_epoch{}.pth'.format(epoch)))
+            state = {'mask_values':dataset.mask_values,
+                     'net': model.state_dict(),
+                     'ssh': ssh.state_dict()}
+
+            torch.save(state, str(dir_checkpoint / 'checkpoint_epoch{}.pth'.format(epoch)))
             logging.info(f'Checkpoint {epoch} saved!')
 
 
 def get_args():
     parser = argparse.ArgumentParser(description='Train the UNet on images and target masks')
-    parser.add_argument('--epochs', '-e', metavar='E', type=int, default=20, help='Number of epochs')
+    parser.add_argument('--epochs', '-e', metavar='E', type=int, default=30, help='Number of epochs')
     parser.add_argument('--batch-size', '-b', dest='batch_size', metavar='B', type=int, default=1, help='Batch size')
     parser.add_argument('--learning-rate', '-l', metavar='LR', type=float, default=1e-5,
                         help='Learning rate', dest='lr')
@@ -233,6 +264,17 @@ def get_args():
     parser.add_argument('--amp', action='store_true', default=False, help='Use mixed precision')
     parser.add_argument('--bilinear', action='store_true', default=False, help='Use bilinear upsampling')
     parser.add_argument('--classes', '-c', type=int, default=2, help='Number of classes')
+
+    parser.add_argument('--shared', default="layer2")
+    parser.add_argument('--depth', default=26, type=int)
+    parser.add_argument('--width', default=1, type=int)
+    parser.add_argument('--group_norm', default=0, type=int)
+
+    parser.add_argument('--milestone_1', default=50, type=int)
+    parser.add_argument('--milestone_2', default=65, type=int)
+    parser.add_argument('--rotation_type', default='rand')
+    parser.add_argument('--outf', default='.')
+
 
     return parser.parse_args()
 
@@ -248,8 +290,13 @@ if __name__ == '__main__':
     # Change here to adapt to your data
     # n_channels=3 for RGB images
     # n_classes is the number of probabilities you want to get per pixel
-    model = UNet(n_channels=3, n_classes=args.classes, bilinear=args.bilinear)
+    # model = UNet(n_channels=3, n_classes=args.classes, bilinear=args.bilinear)
+    model, ext, head, ssh = build_model(args)
+
     model = model.to(memory_format=torch.channels_last)
+    ssh = ssh.to(memory_format=torch.channels_last)
+
+
 
     logging.info(f'Network:\n'
                  f'\t{model.n_channels} input channels\n'
@@ -263,9 +310,12 @@ if __name__ == '__main__':
         logging.info(f'Model loaded from {args.load}')
 
     model.to(device=device)
+    ssh.to(device=device)
+
     try:
         train_model(
             model=model,
+            model2= ssh,
             epochs=args.epochs,
             batch_size=args.batch_size,
             learning_rate=args.lr,
@@ -280,8 +330,10 @@ if __name__ == '__main__':
                       'Consider enabling AMP (--amp) for fast and memory efficient training')
         torch.cuda.empty_cache()
         model.use_checkpointing()
+        ssh.use_checkpointing()
         train_model(
             model=model,
+            model2=ssh,
             epochs=args.epochs,
             batch_size=args.batch_size,
             learning_rate=args.lr,
@@ -290,3 +342,5 @@ if __name__ == '__main__':
             val_percent=args.val / 100,
             amp=args.amp
         )
+
+

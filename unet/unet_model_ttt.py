@@ -3,9 +3,9 @@
 from .unet_parts import *
 
 
-class UNet(nn.Module):
+class UNettt(nn.Module):
     def __init__(self, n_channels, n_classes, bilinear=False):
-        super(UNet, self).__init__()
+        super(UNettt, self).__init__()
         self.n_channels = n_channels
         self.n_classes = n_classes
         self.bilinear = bilinear
@@ -21,20 +21,23 @@ class UNet(nn.Module):
         self.up2 = (Up(512, 256 // factor, bilinear))
         self.up3 = (Up(256, 128 // factor, bilinear))
         self.up4 = (Up(128, 64, bilinear))
-        self.outc = (OutConv(64, n_classes))
+        self.outc = (OutConv(64, 4))
 
     def forward(self, x):
         x1 = self.inc(x)
         x2 = self.down1(x1)
-        x3 = self.down2(x2)  # 1,256,64,64
-        x4 = self.down3(x3)  # 1,512,32,32
-        x5 = self.down4(x4)  # 1,1024,16,16
+        x3 = self.down2(x2)
+        x4 = self.down3(x3)
+        x5 = self.down4(x4)
         x = self.up1(x5, x4)
         x = self.up2(x, x3)
         x = self.up3(x, x2)
         x = self.up4(x, x1)
         logits = self.outc(x)
-        return logits
+        logits = logits.view(logits.size(0), -1)  # Flatten to (batchsize, 1, 256*256)
+        logits = torch.mean(logits, dim=1, keepdim=True)  # Take mean along spatial dimensions
+        out = torch.sigmoid(logits)
+        return out
 
     def use_checkpointing(self):
         self.inc = torch.utils.checkpoint(self.inc)
