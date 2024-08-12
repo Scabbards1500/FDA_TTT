@@ -96,7 +96,7 @@ def forward_and_adapt(x, model, optimizer, memory, mse, gt):
     optimizer.step()
     optimizer.zero_grad()
 
-    with torch.no_grad():
+    with torch.no_grad(): #这里是把风格加入到memory中
         amp,pha = FDA_get_amp_pha_tensor(x)
         memory.push(amp.cpu().numpy(), amp.cpu().numpy())
 

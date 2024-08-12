@@ -26,10 +26,10 @@ from utils.rotation_ttt import *
 
 
 
-# #CHASE
-dir_img = Path(r'D:\tempdataset\TTADataset\CHASE\train\images512')
-dir_mask = Path(r'D:\tempdataset\TTADataset\CHASE\train\masks')
-dir_checkpoint = Path('checkpoints_CHASE_ttt/')
+# # #CHASE
+# dir_img = Path(r'D:\tempdataset\TTADataset\CHASE\train\images512')
+# dir_mask = Path(r'D:\tempdataset\TTADataset\CHASE\train\masks')
+# dir_checkpoint = Path('checkpoints_CHASE_ttt/')
 
 ##########RITE
 # dir_img = Path(r'D:\tempdataset\TTADataset\RITE\train\images5122')
@@ -77,6 +77,12 @@ dir_checkpoint = Path('checkpoints_CHASE_ttt/')
 # dir_img = Path(r"D:\tempdataset\tooth_aug\train\image")
 # dir_mask = Path(r'D:\tempdataset\tooth_aug\train\mask2')
 # dir_checkpoint = Path('checkpoints_teeth_aug/')
+
+# MoNuSeg
+dir_img = Path(r"D:\tempdataset\TTADataset\MuNuSeg\train\images")
+dir_mask = Path(r'D:\tempdataset\TTADataset\MuNuSeg\train\masks')
+dir_checkpoint = Path('checkpoints_MoNuSeg_ttt/')
+
 
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'

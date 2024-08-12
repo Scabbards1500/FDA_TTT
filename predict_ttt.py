@@ -17,13 +17,11 @@ from unet import UNet
 from utils.utils import plot_img_and_mask
 from glob import glob
 import torch.optim as optim
-from utils.dice_score import dice_loss
 
 from utils import tent
 from utils import memorytent
 from utils import ourmemorytent
 
-from predict import dice_score
 
 
 import os
@@ -64,9 +62,18 @@ def main():
     logging.info(f'Using device {device}')
 
     model.to(device=device)
-    state_dict = torch.load(args.model, map_location=device)
-    mask_values = state_dict.pop('mask_values', [0, 1])
-    model.load_state_dict(state_dict,strict=False)
+
+
+
+    ####测试我们的
+    state_dict = torch.load(r"D:\python\UNet-TTA\checkpoints_RITE_ttt\checkpoint_epoch30.pth", map_location=device)
+    model.load_state_dict(state_dict['net'], strict=False)
+    mask_values = [0, 1]
+
+    # # ####原有的
+    # state_dict = torch.load(r"D:\python\UNet-TTA\checkpoints_RITE\checkpoint_epoch20.pth", map_location=device)
+    # mask_values = state_dict.pop('mask_values', [0, 1])
+    # model.load_state_dict(state_dict,strict=False)
 
     if args.method == 'source':
         model = setup_source(model)
@@ -93,11 +100,7 @@ def main():
 
         logging.info(f'Predicting image {filename} ...')
         img = Image.open(filename)
-        base_name = os.path.basename(filename)
-        print(base_name)
-        # 拼接基本名称到in_mask_folder路径中，打开同名文件
-        mask_file = os.path.join(in_mask_folder, base_name)
-        gt_mask = Image.open(mask_file) if in_mask_files else None
+        gt_mask = Image.open(in_mask_files[i]) if in_mask_files else None
 
         mask = predict_img(model=model,
                            full_img=img,
@@ -137,8 +140,8 @@ def dice_score(pred, target):
     smooth = 0.5
     num = pred.size(0)
     # 将灰度标签转换为二值标签
-    pred = (pred > 0.1).float()
-    target = (target > 0.1).float()
+    pred = (pred > 0.5).float()
+    target = (target > 0.5).float()
     m1 = pred.view(num, -1)  # Flatten
     m2 = target.view(num, -1)  # Flatten
     intersection = (m1 * m2).sum()
@@ -176,7 +179,6 @@ def predict_img(model, full_img, device, scale_factor=1, out_threshold=0.5, mask
 
     # 自写
     dice_loss_mask_img = dice_score(mask_img, masks_pred)
-    print(dice_loss_mask_img)
     diceloss.append(dice_loss_mask_img)
 
 

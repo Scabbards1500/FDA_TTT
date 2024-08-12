@@ -26,9 +26,9 @@ from utils.dice_score import dice_loss
 # dir_checkpoint = Path('checkpoints_CHASE_test2/')
 
 #RITE
-dir_img = Path(r'D:\tempdataset\TTADataset\RITE\train\images5122')
-dir_mask = Path(r'D:\tempdataset\TTADataset\RITE\train\masks5122')
-dir_checkpoint = Path('checkpoints_RITE/')
+# dir_img = Path(r'D:\tempdataset\TTADataset\RITE\train\images5122')
+# dir_mask = Path(r'D:\tempdataset\TTADataset\RITE\train\masks5122')
+# dir_checkpoint = Path('checkpoints_RITE/')
 
 #HRF
 # dir_img = Path(r'D:\tempdataset\TTADataset\HRF\train\images512')
@@ -72,7 +72,10 @@ dir_checkpoint = Path('checkpoints_RITE/')
 # dir_mask = Path(r'D:\tempdataset\tooth_aug\train\mask2')
 # dir_checkpoint = Path('checkpoints_teeth_aug/')
 
-
+# MoNuSeg
+dir_img = Path(r"D:\tempdataset\TTADataset\MoNuSeg\train\images")
+dir_mask = Path(r'D:\tempdataset\TTADataset\MoNuSeg\train\masks')
+dir_checkpoint = Path('checkpoints_MoNuSeg/')
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
