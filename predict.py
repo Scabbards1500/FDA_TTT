@@ -77,8 +77,6 @@ def main():
     if args.method == 'ourmemorytent':
         print("ourtent")
         model = setup_ourmemorybank(model)
-    if args.method =='test':
-        model = setup_test(model)
     logging.info('Model loaded!')
 
 
@@ -120,6 +118,7 @@ def main():
             plot_img_and_mask(img, mask)
 
     print(f"average dice score: {np.mean(diceloss)}")
+    # print(f"dice score std：{np.std(diceloss)}")
     logging.info(f'Inference done! Time elapsed: {time.time() - start:.2f} seconds')
 
 def get_image_files(folder_path):
@@ -224,7 +223,7 @@ def setup_ourmemorybank(model):
                            episodic=False)
     return our_mbtt_model
 
-def setup_optimizer(params, optimizer_method='Adam', lr=0.001, beta=0.9, momentum=0.9, dampening=0, weight_decay=0, nesterov=False):
+def setup_optimizer(params, optimizer_method='Adam', lr=1e-3, beta=0.9, momentum=0.9, dampening=0, weight_decay=0, nesterov=False):
     """Set up optimizer for tent adaptation.
 
     Tent needs an optimizer for test-time entropy minimization.

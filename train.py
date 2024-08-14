@@ -72,10 +72,18 @@ from utils.dice_score import dice_loss
 # dir_mask = Path(r'D:\tempdataset\tooth_aug\train\mask2')
 # dir_checkpoint = Path('checkpoints_teeth_aug/')
 
-# MoNuSeg
-dir_img = Path(r"D:\tempdataset\TTADataset\MoNuSeg\train\images")
-dir_mask = Path(r'D:\tempdataset\TTADataset\MoNuSeg\train\masks')
-dir_checkpoint = Path('checkpoints_MoNuSeg/')
+# # MoNuSeg
+# dir_img = Path(r"D:\tempdataset\TTADataset\MoNuSeg\train\images")
+# dir_mask = Path(r'D:\tempdataset\TTADataset\MoNuSeg\train\masks')
+# dir_checkpoint = Path('checkpoints_MoNuSeg/')
+
+
+
+
+
+
+
+
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
@@ -85,7 +93,7 @@ def train_model(
         device,
         epochs: int = 5,
         batch_size: int = 1,
-        learning_rate: float = 1e-6,
+        learning_rate: float = 1e-6 ,
         val_percent: float = 0.1,
         save_checkpoint: bool = True,
         img_scale: float = 0.5,

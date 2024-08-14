@@ -12,7 +12,7 @@ from .Fourier_Tans import FDA_get_amp_pha_tensor, FDA_target_to_source,arc_add_a
 
 
 torch.set_printoptions(precision=5)
-buffer_size = 10
+buffer_size = 30
 
 
 class Tent(nn.Module):
@@ -32,6 +32,8 @@ class Tent(nn.Module):
         if self.episodic:
             self.reset()
             print('Image-specific')
+        if check_if_reset(self.optimizer):
+            self.reset()
 
         for _ in range(self.steps):
             outputs = forward_and_adapt(x, self.model, self.optimizer, self.memory, self.mse, self.gt)
@@ -76,7 +78,7 @@ def forward_and_adapt(x, model, optimizer, memory, mse, gt):
             diff_loss = (diff_loss-torch.mean(diff_loss))
             # 将KL散度作为损失添加到总损失中
             diff_loss = torch.sum(diff_loss, dim=1) # 获取的loss
-            len_loss= len(diff_loss[0])*len(diff_loss[0])*3
+            len_loss= len(diff_loss[0])*len(diff_loss[0])
             diff_loss = diff_loss.cpu().numpy().tolist()
             sum_loss= sum(sum(sublist) for sublist in diff_loss[0])
             diff_loss = abs(sum_loss/len_loss)
@@ -103,6 +105,14 @@ def forward_and_adapt(x, model, optimizer, memory, mse, gt):
     #这里output要换成tensor
     return outputs
 
+def check_if_reset(optimizer):
+    for param_group in optimizer.param_groups:
+        lr = param_group['lr']
+        print(lr)
+        if lr == 0:
+            return True
+        else:
+            return False
 
 
 def collect_params(model):

@@ -12,7 +12,7 @@ import numpy as np
 
 torch.set_printoptions(precision=30)
 
-buffer_size = 10
+buffer_size = 30
 
 
 class Tent(nn.Module):
@@ -74,7 +74,7 @@ def forward_and_adapt(x, model, optimizer, memory, mse, gt):
             diff_loss = torch.sum(diff_loss, dim=1)
             diff_loss = diff_loss.cpu().numpy().tolist()
             sum_loss= sum(sum(sublist) for sublist in diff_loss[0])
-            len_loss = len(diff_loss[0]) * len(diff_loss[0]) * 3
+            len_loss = len(diff_loss[0]) * len(diff_loss[0])
             diff_loss = sum_loss / len_loss
 
             for param_group in optimizer.param_groups:

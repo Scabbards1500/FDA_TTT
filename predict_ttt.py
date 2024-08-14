@@ -66,7 +66,7 @@ def main():
 
 
     ####测试我们的
-    state_dict = torch.load(r"D:\python\UNet-TTA\checkpoints_RITE_ttt\checkpoint_epoch30.pth", map_location=device)
+    state_dict = torch.load(r"D:\python\UNet-TTA\results\kumar_tta\ckpt.pth", map_location=device)
     model.load_state_dict(state_dict['net'], strict=False)
     mask_values = [0, 1]
 

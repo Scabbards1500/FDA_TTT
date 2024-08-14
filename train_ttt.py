@@ -37,8 +37,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    dir_img = Path(r'D:\tempdataset\TTADataset\CHASE\train\images')
-    dir_mask = Path(r'D:\tempdataset\TTADataset\CHASE\train\masks')
+    dir_img = Path(r"D:\tempdataset\TTADataset\MoNuSeg\train\images")
+    dir_mask = Path(r'D:\tempdataset\TTADataset\MoNuSeg\train\masks')
 
     my_makedir(args.outf)
 
