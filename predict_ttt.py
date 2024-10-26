@@ -60,18 +60,22 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logging.info(f'Loading model {args.model}')
     logging.info(f'Using device {device}')
-
     model.to(device=device)
 
 
-
     ####测试我们的
-    state_dict = torch.load(r"D:\python\UNet-TTA\results\kumar_tta\ckpt.pth", map_location=device)
-    model.load_state_dict(state_dict['net'], strict=False)
+
+    state_dict = torch.load(r"D:\python\UNet-TTA\checkpoints_RITE_ttt\checkpoint_epoch30.pth", map_location=device)
+    print(state_dict)
     mask_values = [0, 1]
+    model.load_state_dict(state_dict['net'], strict=False)
+
+
+
 
     # # ####原有的
     # state_dict = torch.load(r"D:\python\UNet-TTA\checkpoints_RITE\checkpoint_epoch20.pth", map_location=device)
+    # print(state_dict)
     # mask_values = state_dict.pop('mask_values', [0, 1])
     # model.load_state_dict(state_dict,strict=False)
 
@@ -179,6 +183,7 @@ def predict_img(model, full_img, device, scale_factor=1, out_threshold=0.5, mask
 
     # 自写
     dice_loss_mask_img = dice_score(mask_img, masks_pred)
+    print("dice_loss_mask_img: ", dice_loss_mask_img)
     diceloss.append(dice_loss_mask_img)
 
 

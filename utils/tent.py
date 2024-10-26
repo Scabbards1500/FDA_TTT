@@ -54,6 +54,8 @@ def forward_and_adapt(x, model, optimizer,groundtruth):
 
     optimizer.step()
     optimizer.zero_grad()
+    for param_group in optimizer.param_groups:
+        print("learningrate:", param_group['lr'])
 
     return outputs
 

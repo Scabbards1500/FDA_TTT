@@ -78,7 +78,8 @@ def forward_and_adapt(x, model, optimizer, memory, mse, gt):
             diff_loss = sum_loss / len_loss
 
             for param_group in optimizer.param_groups:
-                param_group['lr'] = diff_loss * 1e-3
+                param_group['lr'] = diff_loss * param_group['lr']
+                print("learningrate:", param_group['lr'])
 
     loss = softmax_entropy(outputs).mean(0)
     loss.backward()

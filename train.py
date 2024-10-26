@@ -77,13 +77,14 @@ from utils.dice_score import dice_loss
 # dir_mask = Path(r'D:\tempdataset\TTADataset\MoNuSeg\train\masks')
 # dir_checkpoint = Path('checkpoints_MoNuSeg/')
 
+# Kumar
+dir_img = Path(r"D:\tempdataset\TTADataset\kumar\train\images2")
+dir_mask = Path(r'D:\tempdataset\TTADataset\kumar\train\masks')
+dir_checkpoint = Path('checkpoints_Kumar/')
 
-
-
-
-
-
-
+dir_img = Path(r"D:\tempdataset\TTADataset\TNBC\train\images")
+dir_mask = Path(r'D:\tempdataset\TTADataset\TNBC\train\masks')
+dir_checkpoint = Path('checkpoints_TNBC2/')
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'

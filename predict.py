@@ -21,7 +21,7 @@ from utils.dice_score import dice_loss
 
 from utils import tent
 from utils import memorytent
-from utils import ourmemorytent
+from utils import FDAmemorytent
 
 
 
@@ -72,12 +72,13 @@ def main():
     if args.method == 'tent':
         model = setup_tent(model)
     if args.method == 'memorytent':
-        print("memorytent")
+        print("Method: memorytent")
         model = setup_memorybank(model)
-    if args.method == 'ourmemorytent':
-        print("ourtent")
+    if args.method == 'FDA_TTT':
+        print("Method: FDA_TTT")
         model = setup_ourmemorybank(model)
-    logging.info('Model loaded!')
+    # logging.info('Model loaded!')
+    print("Model Loaded")
 
 
     # model.reset()
@@ -89,11 +90,12 @@ def main():
 
     start = time.time()
     for i, filename in enumerate(in_files):
-
-        logging.info(f'Predicting image {filename} ...')
+        print("---"*15, f"Index{i}", "---"*15)
+        # logging.info(f'Predicting image {filename} ...')
+        print(f'Predicting image {filename} ...')
         img = Image.open(filename)
         base_name = os.path.basename(filename)
-        print(base_name)
+        print("base_name", base_name)
         # 拼接基本名称到in_mask_folder路径中，打开同名文件
         mask_file = os.path.join(in_mask_folder, base_name)
         gt_mask = Image.open(mask_file) if in_mask_files else None
@@ -111,20 +113,23 @@ def main():
 
             result = mask_to_image(mask, mask_values)
             result.save(out_filename)
-            logging.info(f'Mask saved to {out_filename}')
+            # logging.info(f'Mask saved to {out_filename}')
+            print(f'Mask saved to {out_filename}')
 
         if args.viz:
-            logging.info(f'Visualizing results for image {filename}, close to continue...')
+            # logging.info(f'Visualizing results for image {filename}, close to continue...')
+            print(f'Visualizing results for image {filename}, close to continue...')
             plot_img_and_mask(img, mask)
 
     print(f"average dice score: {np.mean(diceloss)}")
+    print(f"std: {np.std(diceloss)}")
     # print(f"dice score std：{np.std(diceloss)}")
     logging.info(f'Inference done! Time elapsed: {time.time() - start:.2f} seconds')
 
 def get_image_files(folder_path):
     jpg = glob(os.path.join(folder_path, '*.png'))
     png = glob(os.path.join(folder_path, '*.jpg'))
-    return  jpg + png
+    return jpg + png
 
 
 def get_output_filenames(args):
@@ -176,7 +181,7 @@ def predict_img(model, full_img, device, scale_factor=1, out_threshold=0.5, mask
 
     # 自写
     dice_loss_mask_img = dice_score(mask_img, masks_pred)
-    print(dice_loss_mask_img)
+    print("dice_loss_mask_img: ", dice_loss_mask_img)
     diceloss.append(dice_loss_mask_img)
 
 
@@ -222,6 +227,7 @@ def setup_ourmemorybank(model):
                            steps=1,
                            episodic=False)
     return our_mbtt_model
+
 
 def setup_optimizer(params, optimizer_method='Adam', lr=1e-3, beta=0.9, momentum=0.9, dampening=0, weight_decay=0, nesterov=False):
     """Set up optimizer for tent adaptation.
