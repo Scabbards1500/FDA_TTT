@@ -12,7 +12,7 @@ Furthermore, we incorporate a dynamic learning rate into the model by calculatin
 Our method, implemented with the U-Net architecture, outperforms existing TTA approaches, demonstrating superior results in multi-center medical image segmentation tasks across two different imaging modalities.
 
 
-![input and output for a random image in the test dataset](./pictures/main.png)
+![input and output for a random image in the test dataset](pictures/Main.png)
 
 
 
@@ -88,4 +88,4 @@ Coming soon
 
 
 
-![network architecture](./pictures/Results.png)
+![network architecture](pictures/results.png)
