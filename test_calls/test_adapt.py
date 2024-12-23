@@ -15,7 +15,6 @@ import torch.nn.functional as F
 import time
 
 if __name__ == '__main__':
-	print("adapt!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--dataset', default='cifar10')
 	parser.add_argument('--level', default=0, type=int)
